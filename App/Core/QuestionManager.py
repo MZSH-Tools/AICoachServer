@@ -1,8 +1,30 @@
-from App.Core.QuestionItem import QuestionItem
 import json
 import random
 import os
-from App.Core.ConfigManager import ConfigManager
+from App.Config.ConfigManager import ConfigManager
+
+class _QuestionItem:
+    def __init__(self, RawData: dict, RootPath: str, RandomOption: bool, OptionLabels: list[str]):
+        self.ID = RawData.get("题目ID")
+        self.Type = RawData.get("题目类型", "单选")
+        self.Stem = RawData.get("题目", {}).get("文本", "")
+        self.Image = self.ResolveImagePath(RawData.get("题目", {}).get("图片"), RootPath)
+        self.Options = RawData.get("选项", [])
+        self.OptionLabels = OptionLabels[:len(self.Options)]
+        if RandomOption:
+            random.shuffle(self.Options)
+        for Option in self.Options:
+            Option["真实图片路径"] = self.ResolveImagePath(Option.get("图片"), RootPath)
+        self.CorrectAnswers = [self.OptionLabels[i] for i, Option in enumerate(self.Options) if Option.get("是否正确")]
+        self.Explanation = RawData.get("解析库", [])
+
+    @staticmethod
+    def ResolveImagePath(RelativePath, RootPath):
+        if not RelativePath:
+            return ""
+        ImageRoot = os.path.join(RootPath, "Assets/Images")
+        AbsolutePath = os.path.join(ImageRoot, RelativePath)
+        return AbsolutePath if os.path.exists(AbsolutePath) else ""
 
 class QuestionManager:
     _Instance = None
@@ -62,7 +84,7 @@ class QuestionManager:
             return False
 
         QuestionData = self.QuestionPool.pop(0) if self.Config.GetBool("在题库中移除已抽题目", True) else self.QuestionPool[0]
-        self.CurrentQuestion = QuestionItem(
+        self.CurrentQuestion = _QuestionItem(
             QuestionData,
             self.ProjectRoot,
             self.Config.GetBool("打乱选项", True),
@@ -86,12 +108,12 @@ class QuestionManager:
             StrList.append(f"[TEXT]字符数过多超过题目限制，最多支持{MaxChar}个字符，请重新填写")
             return False, StrList
 
-        Success = True
         for Char in Answer:
             if Char not in self.CurrentQuestion.OptionLabels:
                 StrList.append(f"[TEXT]字符'{Char}'不属于选项{self.CurrentQuestion.OptionLabels}, 请重新输入")
                 return False, StrList
 
+        Success = True
         for Char in Answer:
             CharIndex = self.CurrentQuestion.OptionLabels.index(Char)
             Explanation = self.CurrentQuestion.Options[CharIndex].get("解析", "")

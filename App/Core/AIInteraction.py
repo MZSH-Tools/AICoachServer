@@ -1,7 +1,5 @@
 import requests
-import json
-from App.Core.QuestionManager import QuestionManager
-from App.Core.ConfigManager import ConfigManager
+from App.Config.ConfigManager import ConfigManager
 
 class AIInteraction:
     def __init__(self):

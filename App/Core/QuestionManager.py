@@ -1,7 +1,18 @@
+# ==========================================
+# 📘 QuestionManager - 单例题库管理器
+# ------------------------------------------
+# 用于加载与访问题库数据（JSON）
+# 支持按题目ID获取题目、随机抽题、判题等操作。
+# 模块加载时自动读取 ConfigManager 中配置的题库路径。
+# 提供单例接口 QuestionManager 供全局使用。
+# ==========================================
+
+import os
 import json
 import random
-import os
+from typing import Optional
 from App.Config.ConfigManager import ConfigManager
+
 
 class _QuestionItem:
     def __init__(self, RawData: dict, RootPath: str, RandomOption: bool, OptionLabels: list[str]):
@@ -26,105 +37,94 @@ class _QuestionItem:
         AbsolutePath = os.path.join(ImageRoot, RelativePath)
         return AbsolutePath if os.path.exists(AbsolutePath) else ""
 
-class QuestionManager:
-    _Instance = None
 
-    def __new__(cls):
-        if cls._Instance is None:
-            cls._Instance = super(QuestionManager, cls).__new__(cls)
-            cls._Instance._Initialized = False
-        return cls._Instance
-
+class _QuestionManager:
     def __init__(self):
-        if self._Initialized:
-            return
-        self._Initialized = True
-
-        self.Config = ConfigManager()
-        self.ProjectRoot = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+        self.Config = ConfigManager
+        self.ProjectRoot = os.path.abspath(os.path.join(os.getcwd(), "App"))
         RelativePath = self.Config.GetString("题库路径", "Config/QuestionBank.json")
-        self.QuestionPath = os.path.join(self.ProjectRoot, RelativePath)
+        self.QuestionPath = os.path.join(self.ProjectRoot, "../", RelativePath)
         self.AllQuestions = []
-        self.QuestionPool = []
-        self.CurrentQuestion = None
         self.Explanation = []
         self.LoadQuestions()
 
     def LoadQuestions(self):
         if not os.path.exists(self.QuestionPath):
-            print(f"[警告] 题库文件不存在：{self.QuestionPath}")
+            print(f"[题库管理] 题库文件不存在：{self.QuestionPath}")
             return
 
-        with open(self.QuestionPath, "r", encoding="utf-8-sig") as File:
-            try:
+        try:
+            with open(self.QuestionPath, "r", encoding="utf-8-sig") as File:
                 Data = json.load(File)
                 self.AllQuestions = Data.get("题库", [])
-                self.QuestionPool = self.AllQuestions[:]
                 self.Explanation = Data.get("公共解析库", [])
-            except Exception as Error:
-                print(f"[错误] 加载题库失败：{str(Error)}")
+                print(f"[题库管理] 已加载 {len(self.AllQuestions)} 道题")
+        except Exception as Err:
+            print(f"[题库管理] 加载失败：{Err}")
 
-    def ShufflePool(self):
-        if self.QuestionPool:
-            random.shuffle(self.QuestionPool)
-
-    def ResetPool(self):
-        self.QuestionPool = self.AllQuestions[:]
-
-    def NextRandomQuestion(self) -> bool:
-        if self.Config.GetBool("题库为空时重新加载", True) and not self.QuestionPool:
-            self.ResetPool()
-
-        if self.Config.GetBool("每次抽题打乱顺序", True):
-            self.ShufflePool()
-
-        if not self.QuestionPool:
-            print("[提示] 所有题目已完成，无题可抽。")
-            self.CurrentQuestion = None
-            return False
-
-        QuestionData = self.QuestionPool.pop(0) if self.Config.GetBool("在题库中移除已抽题目", True) else self.QuestionPool[0]
-        self.CurrentQuestion = _QuestionItem(
-            QuestionData,
-            self.ProjectRoot,
-            self.Config.GetBool("打乱选项", True),
-            self.Config.GetList("选项编号", ["A", "B", "C", "D", "E", "F"])
-        )
-        return True
-
-    def GetExplanation(self):
-        if self.CurrentQuestion:
-            return self.CurrentQuestion.Explanation + self.Explanation
+    def GetExplanationById(self, QuestionID) -> list:
+        Question = self.GetQuestionById(QuestionID)
+        if Question:
+            return Question.Explanation + self.Explanation
         return self.Explanation
 
-    def CheckAnswer(self, Answer):
-        if self.CurrentQuestion is None:
+    def GetQuestionById(self, QuestionID, RandomOption=True, OptionLabels=None) -> Optional[_QuestionItem]:
+        for Item in self.AllQuestions:
+            if Item.get("题目ID") == QuestionID:
+                return _QuestionItem(
+                    Item,
+                    self.ProjectRoot,
+                    RandomOption,
+                    OptionLabels or self.Config.GetList("选项编号", ["A", "B", "C", "D"])
+                )
+        return None
+
+    def GetRandomQuestion(self, ExcludeIDs: list[str] = None, RandomOption=True, OptionLabels=None) -> Optional[_QuestionItem]:
+        Pool = [Q for Q in self.AllQuestions if Q.get("题目ID") not in (ExcludeIDs or [])]
+        if not Pool:
+            return None
+        if self.Config.GetBool("每次抽题打乱顺序", True):
+            random.shuffle(Pool)
+        return _QuestionItem(
+            Pool[0],
+            self.ProjectRoot,
+            RandomOption,
+            OptionLabels or self.Config.GetList("选项编号", ["A", "B", "C", "D"])
+        )
+
+    def CheckAnswer(self, Question: _QuestionItem, Answer: str) -> tuple[bool, list[str]]:
+        if Question is None:
             return False, ["[TEXT] 当前没有题目"]
 
         StrList = []
-        MaxChar = len(self.CurrentQuestion.Options) if self.CurrentQuestion.Type == "多选" else 1
+        MaxChar = len(Question.Options) if Question.Type == "多选" else 1
 
         if len(Answer) > MaxChar:
-            StrList.append(f"[TEXT]字符数过多超过题目限制，最多支持{MaxChar}个字符，请重新填写")
+            StrList.append(f"[TEXT] 字符数超过限制，最多支持{MaxChar}个字符")
             return False, StrList
 
         for Char in Answer:
-            if Char not in self.CurrentQuestion.OptionLabels:
-                StrList.append(f"[TEXT]字符'{Char}'不属于选项{self.CurrentQuestion.OptionLabels}, 请重新输入")
+            if Char not in Question.OptionLabels:
+                StrList.append(f"[TEXT] 字符 '{Char}' 不属于选项 {Question.OptionLabels}")
                 return False, StrList
 
         Success = True
         for Char in Answer:
-            CharIndex = self.CurrentQuestion.OptionLabels.index(Char)
-            Explanation = self.CurrentQuestion.Options[CharIndex].get("解析", "")
-            if Char in self.CurrentQuestion.CorrectAnswers:
-                StrList.append(f"[TEXT]选项{Char}: 正确！")
+            CharIndex = Question.OptionLabels.index(Char)
+            Explanation = Question.Options[CharIndex].get("解析", "")
+            if Char in Question.CorrectAnswers:
+                StrList.append(f"[TEXT] 选项 {Char}: 正确！")
                 if self.Config.GetBool("正确解析", False):
-                    StrList.append(f"[TEXT]解析:{Explanation}")
+                    StrList.append(f"[TEXT] 解析: {Explanation}")
             else:
                 Success = False
-                StrList.append(f"[TEXT]选项{Char}: 错误！")
+                StrList.append(f"[TEXT] 选项 {Char}: 错误！")
                 if self.Config.GetBool("错误解析", True):
-                    StrList.append(f"[TEXT]解析:{Explanation}")
+                    StrList.append(f"[TEXT] 解析: {Explanation}")
 
         return Success, StrList
+
+
+# ✅ 全局单例实例
+QuestionManager = _QuestionManager()
+

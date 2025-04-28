@@ -1,10 +1,11 @@
 # ==========================================
-# 🌐 QueryAIWebSocket - WebSocket 总路由
+# 🌐 QueryAIWebSocket - WebSocket 路由（稳定版）
 # ------------------------------------------
-# 接入点：/ws/ai-coach
-# - 每个客户端自动分配 UUID 标识
-# - 支持事件类型分发（如 NextQuestion、CheckAnswer、AskAI）
-# - 事件结构：{ "Event": "事件名", "Params": { ... } }
+#  路径：/ws/ai-coach      ※ Main.py 中 include_router 时不再加 prefix
+#  特点：
+#   • 入口不 accept，交给 SessionManager.Register
+#   • 事件装饰器 @RegisterEvent，新增参数校验
+#   • 任何异常只打印日志 & 友好回复，不炸链接
 # ==========================================
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -14,101 +15,100 @@ from App.Core.AIInteraction import AIInteraction
 
 Router = APIRouter()
 
-# ============================
-# 🎯 事件处理函数注册表
-# ============================
+# ---------- 事件表 ----------
 EventRouter = {}
-
-def RegisterEvent(Name):
+def RegisterEvent(Name):          # 🎯 装饰器
     def Decorator(Func):
         EventRouter[Name] = Func
         return Func
     return Decorator
 
-# ============================
-# 🚪 主接入路由
-# ============================
+# ---------- 主入口 ----------
 @Router.websocket("/ws/ai-coach")
-async def QueryAIWebSocket(WebSocketObj: WebSocket):
-    UserId = await SessionManager.Register(WebSocketObj)
+async def QueryAIWebSocket(WS: WebSocket):
+    UserId = await SessionManager.Register(WS)     # 💡 这里会 accept
 
     try:
         while True:
-            RawMsg = await WebSocketObj.receive_json()
-            Event = RawMsg.get("Event")
-            Params = RawMsg.get("Params", {})
+            try:
+                Msg = await WS.receive_json()
+            except WebSocketDisconnect:
+                break
+            except Exception as Err:
+                print(f"[解析异常] {Err}")
+                await SessionManager.SendText(UserId, "非法消息格式")
+                continue
 
-            if Event in EventRouter:
-                await EventRouter[Event](UserId, Params)
-            else:
-                await SessionManager.SendJson(UserId, {
-                    "Event": "Error",
-                    "Data": f"未知事件类型：{Event}"
-                })
+            Event = Msg.get("Event")
+            Params = Msg.get("Params") or {}
 
-    except WebSocketDisconnect:
+            Handler = EventRouter.get(Event)
+            if not Handler:
+                await SessionManager.SendText(UserId, f"未知事件：{Event}")
+                continue
+
+            try:
+                await Handler(UserId, Params)
+            except Exception as Err:
+                print(f"[处理 {Event} 异常] {Err}")
+                await SessionManager.SendText(UserId, f"{Event} 处理出错")
+
+    finally:
         await SessionManager.Unregister(UserId)
 
-# ============================
-# 📤 事件：NextQuestion
-# ============================
+# ---------- 事件：NextQuestion ----------
 @RegisterEvent("NextQuestion")
 async def HandleNextQuestion(UserId: str, Params: dict):
-    Exclude = Params.get("Exclude", [])
-    RandomOption = Params.get("RandomOption", True)
-    OptionLabels = Params.get("OptionLabels", ["A", "B", "C", "D"])
-
-    Question = QuestionManager.GetRandomQuestion(Exclude, RandomOption, OptionLabels)
+    Question = QuestionManager.GetRandomQuestion(
+        Params.get("Exclude", []),
+        Params.get("RandomOption", True),
+        Params.get("OptionLabels", ["A", "B", "C", "D"])
+    )
     if Question:
         await SessionManager.SendJson(UserId, {
             "Event": "NextQuestion",
             "Data": Question.__dict__
         })
 
-# ============================
-# 📤 事件：CheckAnswer
-# ============================
+# ---------- 事件：CheckAnswer ----------
 @RegisterEvent("CheckAnswer")
 async def HandleCheckAnswer(UserId: str, Params: dict):
     Raw = Params.get("Question")
-    Answer = Params.get("Answer", "")
-    OptionLabels = Raw.get("OptionLabels", ["A", "B", "C", "D"])
+    Answer = (Params.get("Answer") or "").strip().upper()
 
-    Question = _QuestionItem(Raw, QuestionManager.ProjectRoot, False, OptionLabels)
+    if not Raw:
+        await SessionManager.SendText(UserId, "缺少 Question 参数")
+        return
+
+    Question = _QuestionItem(
+        Raw,
+        QuestionManager.ProjectRoot,
+        False,
+        Raw.get("OptionLabels", ["A", "B", "C", "D"])
+    )
     Success, Feedback = QuestionManager.CheckAnswer(Question, Answer)
 
     await SessionManager.SendJson(UserId, {
         "Event": "CheckAnswer",
-        "Data": {
-            "Success": Success,
-            "Feedback": Feedback
-        }
+        "Data": {"Success": Success, "Feedback": Feedback}
     })
 
-# ============================
-# 📤 事件：AskAI（自由提问）
-# ============================
+# ---------- 事件：AskAI ----------
 @RegisterEvent("AskAI")
 async def HandleAskAI(UserId: str, Params: dict):
-    QuestionId = Params.get("QuestionId", "")
+    Qid   = Params.get("QuestionId", "")
     Query = Params.get("Query", "")
 
-    ExplanationList = QuestionManager.GetExplanationById(QuestionId)
+    Prompt = BuildPrompt(Query, QuestionManager.GetExplanationById(Qid))
 
-    PromptText = BuildPrompt(Query, ExplanationList)
+    async for Tok in AIInteraction.StreamReply(Prompt):
+        await SessionManager.SendJson(UserId, {"Event": "StreamReply", "Data": Tok})
 
-    async for Token in AIInteraction.StreamReply(PromptText):
-        await SessionManager.SendJson(UserId, {
-            "Event": "StreamReply",
-            "Data": Token
-        })
-
-# ============================
-# 🔧 辅助函数
-# ============================
-def BuildPrompt(UserInput, Explanations):
-    Prompt = "你是一个严肃认真的驾校教练，正在帮助学生练习科目一考试。"
-    Prompt += "根据提供的解析库内容，准确回答学生提出的问题。如果找不到答案，请回复'没有找到'。"
-    Prompt += f"用户提问：{UserInput}\n"
-    Prompt += f"解析库：{Explanations}\n"
-    return Prompt
+# ---------- 辅助 ----------
+def BuildPrompt(UserInput, Exps):
+    return (
+        "你是一个严肃认真的驾校教练，正在帮助学生练习科目一。\n"
+        "请结合解析库回答提问，找不到时回复“没有找到”。\n"
+        f"解析库：{Exps}\n"
+        f"提问：{UserInput}"
+    )

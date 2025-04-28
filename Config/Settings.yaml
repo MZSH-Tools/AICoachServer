@@ -1,5 +1,9 @@
-模型地址: http://localhost:11434/api/generate
+# 模型设置
 模型名称: deepseek-r1:14b
+模型地址池:
+  - "http://localhost:11434/api/generate"
+
+
 排除思考: true
 题库路径: Config/QuestionBank.json
 打乱选项: true

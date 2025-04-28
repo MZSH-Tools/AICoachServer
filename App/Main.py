@@ -33,7 +33,7 @@ if not os.path.exists(AssetsPath):
 App.mount("/assets", StaticFiles(directory=AssetsPath), name="assets")
 
 # 注册WebSocket路由
-App.include_router(QueryAIWebSocket.Router, prefix="/ws/ai-coach")
+App.include_router(QueryAIWebSocket.Router)
 
 # ==========================================
 # ✅ 支持直接运行调试
@@ -41,7 +41,7 @@ App.include_router(QueryAIWebSocket.Router, prefix="/ws/ai-coach")
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "Main:App",        # 这里是 文件名:FastAPI实例名
+        "App.Main:App",        # 这里是 文件名:FastAPI实例名
         host="127.0.0.1",   # 本地开发用127.0.0.1，正式部署可改成0.0.0.0
         port=8000,
         reload=True        # 自动热重载（开发模式必开）

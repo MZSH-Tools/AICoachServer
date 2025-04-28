@@ -26,7 +26,7 @@ class _ModelPoolManager:
     def __init__(self):
         self.UrlPool: list[ModelNode] = []
         self.WaitingQueue: deque = deque()
-        self.Config = ConfigManager()
+        self.Config = ConfigManager
         self.InitPool()
 
     def InitPool(self):

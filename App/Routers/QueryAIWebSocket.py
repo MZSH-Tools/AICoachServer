@@ -1,25 +1,23 @@
 # ==========================================
 # 🌐 QueryAIWebSocket - WebSocket 总路由
 # ------------------------------------------
-# 接入点：/ws/query-ai
+# 接入点：/ws/ai-coach
 # - 每个客户端自动分配 UUID 标识
-# - 支持事件类型分发（如 NextQuestion、CheckAnswer）
+# - 支持事件类型分发（如 NextQuestion、CheckAnswer、AskAI）
 # - 事件结构：{ "Event": "事件名", "Params": { ... } }
-# - 所有处理函数独立解耦，参数自解析
 # ==========================================
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from App.Managers.SessionManager import SessionManager
 from App.Core.QuestionManager import QuestionManager, _QuestionItem
+from App.Core.AIInteraction import AIInteraction
 
 Router = APIRouter()
-
 
 # ============================
 # 🎯 事件处理函数注册表
 # ============================
 EventRouter = {}
-
 
 def RegisterEvent(Name):
     def Decorator(Func):
@@ -27,11 +25,10 @@ def RegisterEvent(Name):
         return Func
     return Decorator
 
-
 # ============================
 # 🚪 主接入路由
 # ============================
-@Router.websocket("/ws/query-ai")
+@Router.websocket("/ws/ai-coach")
 async def QueryAIWebSocket(WebSocketObj: WebSocket):
     UserId = await SessionManager.Register(WebSocketObj)
 
@@ -52,7 +49,6 @@ async def QueryAIWebSocket(WebSocketObj: WebSocket):
     except WebSocketDisconnect:
         await SessionManager.Unregister(UserId)
 
-
 # ============================
 # 📤 事件：NextQuestion
 # ============================
@@ -66,9 +62,8 @@ async def HandleNextQuestion(UserId: str, Params: dict):
     if Question:
         await SessionManager.SendJson(UserId, {
             "Event": "NextQuestion",
-            "Data": Question.__dict__  # 可改为 ToDict() 更优
+            "Data": Question.__dict__
         })
-
 
 # ============================
 # 📤 事件：CheckAnswer
@@ -90,3 +85,30 @@ async def HandleCheckAnswer(UserId: str, Params: dict):
         }
     })
 
+# ============================
+# 📤 事件：AskAI（自由提问）
+# ============================
+@RegisterEvent("AskAI")
+async def HandleAskAI(UserId: str, Params: dict):
+    QuestionId = Params.get("QuestionId", "")
+    Query = Params.get("Query", "")
+
+    ExplanationList = QuestionManager.GetExplanationById(QuestionId)
+
+    PromptText = BuildPrompt(Query, ExplanationList)
+
+    async for Token in AIInteraction.StreamReply(PromptText):
+        await SessionManager.SendJson(UserId, {
+            "Event": "StreamReply",
+            "Data": Token
+        })
+
+# ============================
+# 🔧 辅助函数
+# ============================
+def BuildPrompt(UserInput, Explanations):
+    Prompt = "你是一个严肃认真的驾校教练，正在帮助学生练习科目一考试。"
+    Prompt += "根据提供的解析库内容，准确回答学生提出的问题。如果找不到答案，请回复'没有找到'。"
+    Prompt += f"用户提问：{UserInput}\n"
+    Prompt += f"解析库：{Explanations}\n"
+    return Prompt

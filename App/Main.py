@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from App.Routers import Question
+from App.Routers import QueryAIWebSocket
+import os
 
 # 创建 FastAPI 应用
 App = FastAPI()
@@ -16,7 +17,11 @@ App.add_middleware(
 )
 
 # 挂载静态资源目录，用于题图访问
-App.mount("/assets", StaticFiles(directory="Assets/Images"), name="assets")
+AssetsPath = os.path.join(os.getcwd(), "Assets/Images")
+if not os.path.exists(AssetsPath):
+    os.makedirs(AssetsPath)
+App.mount("/assets", StaticFiles(directory=AssetsPath), name="assets")
+
 
 # 注册路由模块
-App.include_router(Question.Router)
+App.include_router(QueryAIWebSocket.Router)

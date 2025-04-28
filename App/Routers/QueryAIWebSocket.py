@@ -1,43 +1,92 @@
-# ================================
-# 📡 QueryAIWebSocket
-# --------------------------------
-# WebSocket 接口：/ws/query-ai
-# - 每个连接分配 UUID 标识
-# - 接收用户消息
-# - 实时返回 AI 回复（分段）
-# - 保持长连接
-# ================================
+# ==========================================
+# 🌐 QueryAIWebSocket - WebSocket 总路由
+# ------------------------------------------
+# 接入点：/ws/query-ai
+# - 每个客户端自动分配 UUID 标识
+# - 支持事件类型分发（如 NextQuestion、CheckAnswer）
+# - 事件结构：{ "Event": "事件名", "Params": { ... } }
+# - 所有处理函数独立解耦，参数自解析
+# ==========================================
 
-from fastapi import APIRouter, WebSocket
-from fastapi.websockets import WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from App.Managers.SessionManager import SessionManager
-import asyncio
+from App.Core.QuestionManager import QuestionManager, _QuestionItem
 
 Router = APIRouter()
 
+
+# ============================
+# 🎯 事件处理函数注册表
+# ============================
+EventRouter = {}
+
+
+def RegisterEvent(Name):
+    def Decorator(Func):
+        EventRouter[Name] = Func
+        return Func
+    return Decorator
+
+
+# ============================
+# 🚪 主接入路由
+# ============================
 @Router.websocket("/ws/query-ai")
 async def QueryAIWebSocket(WebSocketObj: WebSocket):
-    # 注册连接并自动生成 UUID
     UserId = await SessionManager.Register(WebSocketObj)
 
     try:
         while True:
-            # 接收客户端文本消息
-            UserInput = await WebSocketObj.receive_text()
-            print(f"[{UserId}] 收到提问：{UserInput}")
+            RawMsg = await WebSocketObj.receive_json()
+            Event = RawMsg.get("Event")
+            Params = RawMsg.get("Params", {})
 
-            # 模拟流式 AI 回复（1秒一段）
-            Sentences = [f"{UserInput} 的回答如下：", "首先……", "然后……", "最后……"]
-            for Sentence in Sentences:
+            if Event in EventRouter:
+                await EventRouter[Event](UserId, Params)
+            else:
                 await SessionManager.SendJson(UserId, {
-                    "Type": "Text",
-                    "Data": Sentence
+                    "Event": "Error",
+                    "Data": f"未知事件类型：{Event}"
                 })
-                await asyncio.sleep(1)
-
-            # 模拟语音（可替换为 edge-tts 合成）
-            # AudioBytes = GenerateAudio(Sentence)
-            # await SessionManager.SendAudio(UserId, AudioBytes)
 
     except WebSocketDisconnect:
         await SessionManager.Unregister(UserId)
+
+
+# ============================
+# 📤 事件：NextQuestion
+# ============================
+@RegisterEvent("NextQuestion")
+async def HandleNextQuestion(UserId: str, Params: dict):
+    Exclude = Params.get("Exclude", [])
+    RandomOption = Params.get("RandomOption", True)
+    OptionLabels = Params.get("OptionLabels", ["A", "B", "C", "D"])
+
+    Question = QuestionManager.GetRandomQuestion(Exclude, RandomOption, OptionLabels)
+    if Question:
+        await SessionManager.SendJson(UserId, {
+            "Event": "NextQuestion",
+            "Data": Question.__dict__  # 可改为 ToDict() 更优
+        })
+
+
+# ============================
+# 📤 事件：CheckAnswer
+# ============================
+@RegisterEvent("CheckAnswer")
+async def HandleCheckAnswer(UserId: str, Params: dict):
+    Raw = Params.get("Question")
+    Answer = Params.get("Answer", "")
+    OptionLabels = Raw.get("OptionLabels", ["A", "B", "C", "D"])
+
+    Question = _QuestionItem(Raw, QuestionManager.ProjectRoot, False, OptionLabels)
+    Success, Feedback = QuestionManager.CheckAnswer(Question, Answer)
+
+    await SessionManager.SendJson(UserId, {
+        "Event": "CheckAnswer",
+        "Data": {
+            "Success": Success,
+            "Feedback": Feedback
+        }
+    })
+

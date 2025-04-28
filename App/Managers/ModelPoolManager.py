@@ -12,7 +12,7 @@ import httpx
 import uuid
 from collections import deque
 from typing import Optional
-from App.Config.ConfigManager import ConfigManager
+from App.Managers.ConfigManager import ConfigManager
 
 
 class ModelNode:

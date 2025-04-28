@@ -11,7 +11,9 @@ import os
 import json
 import random
 from typing import Optional
-from App.Config.ConfigManager import ConfigManager
+
+from App.Managers.PathManager import PathManager
+from App.Managers.ConfigManager import ConfigManager
 
 
 class _QuestionItem:
@@ -41,9 +43,8 @@ class _QuestionItem:
 class _QuestionManager:
     def __init__(self):
         self.Config = ConfigManager
-        self.ProjectRoot = os.path.abspath(os.path.join(os.getcwd(), "App"))
-        RelativePath = self.Config.GetString("题库路径", "Config/QuestionBank.json")
-        self.QuestionPath = os.path.join(self.ProjectRoot, "../", RelativePath)
+        self.ProjectRoot = PathManager.GetProjectRoot()
+        self.QuestionPath = PathManager.GetQuestionBankPath()
         self.AllQuestions = []
         self.Explanation = []
         self.LoadQuestions()

@@ -10,7 +10,7 @@
 
 import httpx
 import json
-from App.Config.ConfigManager import ConfigManager
+from App.Managers.ConfigManager import ConfigManager
 from App.Managers.ModelPoolManager import ModelPoolManager
 
 

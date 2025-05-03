@@ -60,35 +60,22 @@ async def QueryAIWebSocket(WS: WebSocket):
 @RegisterEvent("NextQuestion")
 async def HandleNextQuestion(UserId: str, Params: dict):
     Result = dict()
-    QuestionManager.GetRandomQuestion(UserId, Params, Result)
+    QuestionManager.NextQuestion(UserId, Params, Result)
     await SessionManager.SendJson(UserId, {
         "Event": "NextQuestion",
         "Data": Result
     })
 
+# ---------- 事件：CheckAnswer ----------
+@RegisterEvent("CheckAnswer")
+async def HandleCheckAnswer(UserId: str, Params: dict):
+    Result = dict()
+    QuestionManager.CheckAnswer(UserId, Params, Result)
 
-# # ---------- 事件：CheckAnswer ----------
-# @RegisterEvent("CheckAnswer")
-# async def HandleCheckAnswer(UserId: str, Params: dict):
-#     Raw = Params.get("Question")
-#     Answer = (Params.get("Answer") or "").strip().upper()
-#
-#     if not Raw:
-#         await SessionManager.SendText(UserId, "缺少 Question 参数")
-#         return
-#
-#     Question = _QuestionItem(
-#         Raw,
-#         QuestionManager.ProjectRoot,
-#         False,
-#         Raw.get("OptionLabels", ["A", "B", "C", "D"])
-#     )
-#     Success, Feedback = QuestionManager.CheckAnswer(Question, Answer)
-#
-#     await SessionManager.SendJson(UserId, {
-#         "Event": "CheckAnswer",
-#         "Data": {"Success": Success, "Feedback": Feedback}
-#     })
+    await SessionManager.SendJson(UserId, {
+        "Event": "CheckAnswer",
+        "Data": Result
+    })
 #
 # ---------- 事件：AskAI ----------
 @RegisterEvent("AskAI")

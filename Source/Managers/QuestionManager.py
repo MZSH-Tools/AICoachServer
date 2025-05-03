@@ -30,7 +30,7 @@ class _QuestionManager:
         except Exception as e:
             print(f"[题库解析失败] {e}")
 
-    def GetRandomQuestion(self, UserId: str, Params: dict, Result: dict) -> list[str] | None:
+    def NextQuestion(self, UserId: str, Params: dict, Result: dict) -> list[str] | None:
         Exclude = Params.get("Exclude", [])
         RandomOption = Params.get("RandomOption", True)
         OptionLabels = Params.get("OptionLabels", ["A", "B", "C", "D"])
@@ -65,12 +65,8 @@ class _QuestionManager:
             return False, "未找到绑定题目"
         return self.CheckAnswer(Question, Answer)
 
-    def CheckAnswer(self, Question: QuestionItem, Answer: str) -> tuple[bool, str]:
-        if not Answer:
-            return False, "未作答"
-        if Answer in Question.CorrectAnswers:
-            return True, "回答正确"
-        return False, f"回答错误，正确答案是：{'、'.join(Question.CorrectAnswers)}"
+    def CheckAnswer(self, UserId: str, Params: dict, Result: dict) -> tuple[bool, str]:
+        CurQuestion = self.QuestionDict.get(UserId)
 
     def ClearUserQuestion(self, UserId: str):
         self.QuestionDict.pop(UserId, None)

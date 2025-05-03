@@ -59,7 +59,8 @@ async def QueryAIWebSocket(WS: WebSocket):
 # ---------- 事件：NextQuestion ----------
 @RegisterEvent("NextQuestion")
 async def HandleNextQuestion(UserId: str, Params: dict):
-    Result = QuestionManager.GetRandomQuestion(UserId, Params)
+    Result = dict()
+    QuestionManager.GetRandomQuestion(UserId, Params, Result)
     await SessionManager.SendJson(UserId, {
         "Event": "NextQuestion",
         "Data": Result

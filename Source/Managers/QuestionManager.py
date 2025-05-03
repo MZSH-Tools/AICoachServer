@@ -30,19 +30,21 @@ class _QuestionManager:
         except Exception as e:
             print(f"[题库解析失败] {e}")
 
-    def GetRandomQuestion(self, UserId: str, Params: dict) -> list[str] | None:
+    def GetRandomQuestion(self, UserId: str, Params: dict, Result: dict) -> list[str] | None:
         Exclude = Params.get("Exclude", [])
         RandomOption = Params.get("RandomOption", True)
         OptionLabels = Params.get("OptionLabels", ["A", "B", "C", "D"])
 
-        Candidates = [Q for Qid, Q in self.QuestionBank.items() if Qid not in Exclude]
-        if not Candidates:
-            return None
+        TextList = []
 
-        Raw = random.choice(Candidates)
-        Question = QuestionItem(Raw, self.ProjectRoot, RandomOption, OptionLabels)
-        self.QuestionDict[UserId] = Question
-        return self.FormatQuestionAsText(Question)
+        Candidates = [Q for Qid, Q in self.QuestionBank.items() if Qid not in Exclude]
+        if Candidates:
+            Raw = random.choice(Candidates)
+            Question = QuestionItem(Raw, self.ProjectRoot, RandomOption, OptionLabels)
+            self.QuestionDict[UserId] = Question
+            TextList = self.FormatQuestionAsText(Question)
+
+        Result["Question"] = TextList
 
     def FormatQuestionAsText(self, Question: QuestionItem) -> list[str]:
         Lines = []

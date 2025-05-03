@@ -10,7 +10,7 @@
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from Source.Managers.SessionManager import SessionManager
-from Source.Core.QuestionManager import QuestionManager, _QuestionItem
+from Source.Managers.QuestionManager import QuestionManager, _QuestionItem
 from Source.Core.AIInteraction import AIInteraction
 
 Router = APIRouter()

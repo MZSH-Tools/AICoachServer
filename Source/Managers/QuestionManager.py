@@ -1,22 +1,19 @@
 # ==========================================
-# 📦 QuestionManager - 题库与题目状态管理器
-# ------------------------------------------
-# 管理题库加载、题目抽取、判题、绑定用户状态
+# 📦 QuestionManager - 题库与状态管理器
 # ==========================================
 
 import os
 import json
 import random
-from typing import Optional
+from Source.Managers.PathManager import PathManager
 from Source.Core.QuestionItem import QuestionItem
-from App.Managers.PathManager import PathManager
 
 
 class _QuestionManager:
     def __init__(self):
-        self.ProjectRoot = PathManager.ProjectRoot
+        self.ProjectRoot = PathManager.GetProjectRoot()
         self.QuestionBank: dict[str, dict] = {}
-        self.QuestionDict: dict[str, QuestionItem] = {}  # UserId → 当前题目
+        self.QuestionDict: dict[str, QuestionItem] = {}  # 用户题目缓存
         self.LoadQuestionBank()
 
     def LoadQuestionBank(self):
@@ -32,18 +29,32 @@ class _QuestionManager:
         except Exception as e:
             print(f"[题库解析失败] {e}")
 
-    def GetRandomQuestion(self, UserId: str, Exclude: list[str], RandomOption=True, OptionLabels=["A", "B", "C", "D"]):
+    def GetRandomQuestion(self, UserId: str, Params: dict) -> list[str] | None:
+        Exclude = Params.get("Exclude", [])
+        RandomOption = Params.get("RandomOption", True)
+        OptionLabels = Params.get("OptionLabels", ["A", "B", "C", "D"])
+
         Candidates = [Q for Qid, Q in self.QuestionBank.items() if Qid not in Exclude]
         if not Candidates:
             return None
+
         Raw = random.choice(Candidates)
         Question = QuestionItem(Raw, self.ProjectRoot, RandomOption, OptionLabels)
         self.QuestionDict[UserId] = Question
-        return Question
+        return self.FormatQuestionAsText(Question)
 
-    def GetExplanationById(self, Qid: str) -> str:
-        Raw = self.QuestionBank.get(Qid)
-        return "\n".join(Raw.get("解析库", [])) if Raw else ""
+    def FormatQuestionAsText(self, Question: QuestionItem) -> list[str]:
+        Lines = []
+        if Question.Stem:
+            Lines.append(f"[TEXT]  {Question.Stem}")
+        if Question.Image:
+            Lines.append(f"[IMAGE] {Question.Image}")
+        for Label, Option in zip(Question.OptionLabels, Question.Options):
+            if Option.get("文本"):
+                Lines.append(f"[TEXT]  [{Label}] {Option['文本']}")
+            if Option.get("真实图片路径"):
+                Lines.append(f"[IMAGE] {Option['真实图片路径']}")
+        return Lines
 
     def EvaluateAnswer(self, UserId: str, Answer: str) -> tuple[bool, str]:
         Question = self.QuestionDict.get(UserId)

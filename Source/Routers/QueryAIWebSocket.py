@@ -10,7 +10,7 @@
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from Source.Managers.SessionManager import SessionManager
-from Source.Managers.QuestionManager import QuestionManager, _QuestionItem
+from Source.Managers.QuestionManager import QuestionManager
 from Source.Core.AIInteraction import AIInteraction
 
 Router = APIRouter()
@@ -59,40 +59,36 @@ async def QueryAIWebSocket(WS: WebSocket):
 # ---------- 事件：NextQuestion ----------
 @RegisterEvent("NextQuestion")
 async def HandleNextQuestion(UserId: str, Params: dict):
-    Question = QuestionManager.GetRandomQuestion(
-        Params.get("Exclude", []),
-        Params.get("RandomOption", True),
-        Params.get("OptionLabels", ["A", "B", "C", "D"])
-    )
-    if Question:
-        await SessionManager.SendJson(UserId, {
-            "Event": "NextQuestion",
-            "Data": Question.__dict__
-        })
-
-# ---------- 事件：CheckAnswer ----------
-@RegisterEvent("CheckAnswer")
-async def HandleCheckAnswer(UserId: str, Params: dict):
-    Raw = Params.get("Question")
-    Answer = (Params.get("Answer") or "").strip().upper()
-
-    if not Raw:
-        await SessionManager.SendText(UserId, "缺少 Question 参数")
-        return
-
-    Question = _QuestionItem(
-        Raw,
-        QuestionManager.ProjectRoot,
-        False,
-        Raw.get("OptionLabels", ["A", "B", "C", "D"])
-    )
-    Success, Feedback = QuestionManager.CheckAnswer(Question, Answer)
-
+    Result = QuestionManager.GetRandomQuestion(UserId, Params)
     await SessionManager.SendJson(UserId, {
-        "Event": "CheckAnswer",
-        "Data": {"Success": Success, "Feedback": Feedback}
+        "Event": "NextQuestion",
+        "Data": Result
     })
 
+
+# # ---------- 事件：CheckAnswer ----------
+# @RegisterEvent("CheckAnswer")
+# async def HandleCheckAnswer(UserId: str, Params: dict):
+#     Raw = Params.get("Question")
+#     Answer = (Params.get("Answer") or "").strip().upper()
+#
+#     if not Raw:
+#         await SessionManager.SendText(UserId, "缺少 Question 参数")
+#         return
+#
+#     Question = _QuestionItem(
+#         Raw,
+#         QuestionManager.ProjectRoot,
+#         False,
+#         Raw.get("OptionLabels", ["A", "B", "C", "D"])
+#     )
+#     Success, Feedback = QuestionManager.CheckAnswer(Question, Answer)
+#
+#     await SessionManager.SendJson(UserId, {
+#         "Event": "CheckAnswer",
+#         "Data": {"Success": Success, "Feedback": Feedback}
+#     })
+#
 # ---------- 事件：AskAI ----------
 @RegisterEvent("AskAI")
 async def HandleAskAI(UserId: str, Params: dict):

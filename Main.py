@@ -30,7 +30,7 @@ App.add_middleware(
 AssetsPath = os.path.join(os.getcwd(), "Assets/Images")
 if not os.path.exists(AssetsPath):
     os.makedirs(AssetsPath)
-App.mount("/assets", StaticFiles(directory=AssetsPath), name="assets")
+App.mount("Source/Assets", StaticFiles(directory=AssetsPath), name="assets")
 
 # 注册WebSocket路由
 App.include_router(QueryAIWebSocket.Router)

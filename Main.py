@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from Source.Routers import QueryAIWebSocket
+from Source.Managers.PathManager import PathManager
 import os
 
 # 创建 FastAPI 应用
@@ -27,10 +28,10 @@ App.add_middleware(
 )
 
 # 挂载静态资源目录（用于题目图片访问）
-AssetsPath = os.path.join(os.getcwd(), "Assets/Images")
-if not os.path.exists(AssetsPath):
-    os.makedirs(AssetsPath)
-App.mount("Source/Assets", StaticFiles(directory=AssetsPath), name="assets")
+AssetsDir = PathManager.GetAssetsDir()
+if not os.path.exists(AssetsDir):
+    os.makedirs(AssetsDir)
+App.mount("/Assets", StaticFiles(directory=AssetsDir), name="Assets")
 
 # 注册WebSocket路由
 App.include_router(QueryAIWebSocket.Router)
@@ -40,9 +41,4 @@ App.include_router(QueryAIWebSocket.Router)
 # ==========================================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "Source.Main:Source",        # 这里是 文件名:FastAPI实例名
-        host="127.0.0.1",   # 本地开发用127.0.0.1，正式部署可改成0.0.0.0
-        port=8000,
-        reload=True        # 自动热重载（开发模式必开）
-    )
+    uvicorn.run("Main:App", host="0.0.0.0", port=8000, reload=True)

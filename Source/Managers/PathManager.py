@@ -16,29 +16,29 @@ class _PathManager:
     def GetProjectRoot(self) -> str:
         return self._ProjectRoot
 
-    def GetAppFolder(self):
+    def GetSourceDir(self):
         return os.path.join(self._ProjectRoot, "Source")
 
-    def GetConfigFolder(self):
+    def GetConfigDir(self):
         return os.path.join(self._ProjectRoot, "Config")
 
-    def GetDataFolder(self) -> str:
+    def GetDataDir(self) -> str:
         return os.path.join(self._ProjectRoot, "Data")
 
-    def GetAssetsFolder(self) -> str:
+    def GetAssetsDir(self) -> str:
         return os.path.join(self._ProjectRoot, "Assets")
 
     # ====== 具体资源路径 ======
     def GetQuestionBankPath(self) -> str:
-        return os.path.join(self.GetDataFolder(), "QuestionBank.json")
+        return os.path.join(self.GetDataDir(), "QuestionBank.json")
 
     def GetConfigPath(self) -> str:
-        return os.path.join(self.GetConfigFolder(), "Settings.yaml")
+        return os.path.join(self.GetConfigDir(), "Settings.yaml")
 
-    def GetImagesFolder(self) -> str:
-        return os.path.join(self.GetAssetsFolder(), "Images")
+    def GetImagesDir(self) -> str:
+        return os.path.join(self.GetAssetsDir(), "Images")
 
-    def GetAudioFolder(self) -> str:
-        return os.path.join(self.GetAssetsFolder(), "Audio")
+    def GetAudioDir(self) -> str:
+        return os.path.join(self.GetAssetsDir(), "Audio")
 
 PathManager = _PathManager()

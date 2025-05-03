@@ -6,6 +6,7 @@ import os
 import json
 import random
 from Source.Managers.PathManager import PathManager
+from Source.Managers.ConfigManager import ConfigManager
 from Source.Core.QuestionItem import QuestionItem
 
 
@@ -17,12 +18,12 @@ class _QuestionManager:
         self.LoadQuestionBank()
 
     def LoadQuestionBank(self):
-        BankPath = os.path.join(self.ProjectRoot, "Assets/Data/题库.json")
+        BankPath = os.path.join(self.ProjectRoot, ConfigManager.GetString("题目路径", "Data/QuestionBank.json"))
         if not os.path.exists(BankPath):
             print(f"[题库加载失败] 未找到文件：{BankPath}")
             return
         try:
-            with open(BankPath, "r", encoding="utf-8") as f:
+            with open(BankPath, "r", encoding="utf-8-sig") as f:
                 Data = json.load(f)
                 self.QuestionBank = {Item["题目ID"]: Item for Item in Data.get("题库", [])}
                 print(f"[题库加载成功] 共加载题目 {len(self.QuestionBank)} 道")

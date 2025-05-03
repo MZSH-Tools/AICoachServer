@@ -5,7 +5,7 @@
 
 
 排除思考: true
-题库路径: Config/QuestionBank.json
+题库路径: Data/QuestionBank.json
 打乱选项: true
 选项编号: ["A", "B", "C", "D"]
 正确解析: true

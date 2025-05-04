@@ -68,7 +68,7 @@ class _QuestionManager:
         if not Question:
             Result["ShowStr"] = "未找到绑定题目"
             return
-        UserAnswer = Params.get("Answer", "").strip()
+        UserAnswer = Params.get("Answer", "").strip().upper()
 
         if UserAnswer == "":
             Result["ShowStr"] = "不能输入为空，请输入正确的答案"
@@ -87,13 +87,14 @@ class _QuestionManager:
             
         Result["Success"] = True
         AnswerStr = ""
-        if len(UserAnswerArray) == len(Question.CorrectAnswers):
+        if len(UserAnswerArray) == len(Question.CorrectAnswers) and all(
+                answer in Question.CorrectAnswers for answer in UserAnswerArray):
             AnswerStr = "回答正确！"
             if Params.get("ParseOnAnswerRight", False):
                 AnswerStr += f"{Question.Parse}"
         else:
             AnswerStr = "回答错误！"
-            AnswerStr += f"正确答案是 {Question.CorrectAnswers}"
+            AnswerStr += f"正确答案是 {','.join(Question.CorrectAnswers)}"
             if Params.get("ParseOnAnswerError", True):
                 AnswerStr += f"{Question.Parse}"
 

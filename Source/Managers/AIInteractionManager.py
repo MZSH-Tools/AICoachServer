@@ -72,9 +72,9 @@ class _AIInteractionManager:
             Result["ErrorStr"] = ErrorStr
             yield f"[ERROR] {ErrorStr}"
             return None
-        Explanations = Question.ExplanationMap
-        Explanations += QuestionManager.ExplanationMap
-        Prompt += f"解析库是{Explanations}。"
+        ExplanationMap = Question.ExplanationMap
+        ExplanationMap += QuestionManager.ExplanationMap
+        Prompt += f"解析库是{ExplanationMap}。"
 
         async def _Generator():
             Result["Text"] = ""

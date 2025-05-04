@@ -26,7 +26,7 @@ class QuestionItem:
             Option["真实图片路径"] = self.ResolveImagePath(Option.get("图片"), RootPath)
 
         self.CorrectAnswers = [self.OptionLabels[i] for i, Option in enumerate(self.Options) if Option.get("是否正确")]
-        self.Explanation = RawData.get("解析库", [])
+        self.ExplanationMap = {Item["问题"]: Item["解析"] for Item in RawData.get("公共解析库", [])}
 
     @staticmethod
     def ResolveImagePath(RelativePath: Optional[str], RootPath: str) -> str:
@@ -37,7 +37,8 @@ class QuestionItem:
 class _QuestionManager:
     def __init__(self):
         self.ProjectRoot = PathManager.GetProjectRoot()
-        self.QuestionBank: dict[str, dict] = {}
+        self.QuestionMap: dict[str, dict] = {}
+        self.ExplanationMap: dict[str, str] = {}
         self.QuestionDict: dict[str, QuestionItem] = {}  # 用户题目缓存
         self.LoadQuestionBank()
 
@@ -49,8 +50,10 @@ class _QuestionManager:
         try:
             with open(BankPath, "r", encoding="utf-8-sig") as f:
                 Data = json.load(f)
-                self.QuestionBank = {Item["题目ID"]: Item for Item in Data.get("题库", [])}
-                print(f"[题库加载成功] 共加载题目 {len(self.QuestionBank)} 道")
+                self.QuestionMap = {Item["题目ID"]: Item for Item in Data.get("题库", [])}
+                print(f"[题库加载成功] 共加载题目 {len(self.QuestionMap)} 道")
+                self.ExplanationMap = {Item["问题"]: Item["解析"] for Item in Data.get("公共解析库", [])}
+                print(f"[公共解析库加载成功] 共加载问题 {len(self.ExplanationMap)} 道")
         except Exception as e:
             print(f"[题库解析失败] {e}")
 
@@ -59,7 +62,7 @@ class _QuestionManager:
         RandomOption = Params.get("RandomOption", True)
         OptionLabels = Params.get("OptionLabels", ["A", "B", "C", "D"])
 
-        Candidates = [Q for Qid, Q in self.QuestionBank.items() if Qid not in Exclude]
+        Candidates = [Q for Qid, Q in self.QuestionMap.items() if Qid not in Exclude]
         if not Candidates:
             Result["Success"] = False
             Result["Question"] = []

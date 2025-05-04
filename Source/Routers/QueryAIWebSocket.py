@@ -80,19 +80,6 @@ async def HandleCheckAnswer(UserId: str, Params: dict):
 # ---------- 事件：AskAI ----------
 @RegisterEvent("AskAI")
 async def HandleAskAI(UserId: str, Params: dict):
-    Qid   = Params.get("QuestionId", "")
-    Query = Params.get("Query", "")
-
-    Prompt = BuildPrompt(Query, QuestionManager.GetExplanationById(Qid))
-
-    async for Tok in AIInteractionManager.StreamReply(Prompt):
-        await SessionManager.SendJson(UserId, {"Event": "StreamReply", "Data": Tok})
-
-# ---------- 辅助 ----------
-def BuildPrompt(UserInput, Exps):
-    return (
-        "你是一个严肃认真的驾校教练，正在帮助学生练习科目一。\n"
-        "请结合解析库回答提问，找不到时回复“没有找到”。\n"
-        f"解析库：{Exps}\n"
-        f"提问：{UserInput}"
-    )
+    Result = dict()
+    async for Tok in AIInteractionManager.AskAI(UserId, Params, Result):
+        await SessionManager.SendJson(UserId, {"Event": "StreamReply", "Data": Result})

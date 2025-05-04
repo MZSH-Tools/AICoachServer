@@ -14,7 +14,7 @@ from Source.Managers.ConfigManager import ConfigManager
 from Source.Managers.ModelPoolManager import ModelPoolManager
 
 
-class _AIInteraction:
+class _AIInteractionManager:
     def __init__(self):
         self.Config = ConfigManager
         self.ModelName = self.Config.GetString("模型名称", "deepseek-r1:14b")
@@ -57,5 +57,5 @@ class _AIInteraction:
 
 
 # ✅ 单例实例暴露
-AIInteraction = _AIInteraction()
+AIInteractionManager = _AIInteractionManager()
 

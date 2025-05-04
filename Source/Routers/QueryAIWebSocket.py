@@ -11,7 +11,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from Source.Managers.SessionManager import SessionManager
 from Source.Managers.QuestionManager import QuestionManager
-from Source.Core.AIInteraction import AIInteraction
+from Source.Managers.AIInteractionManager import AIInteractionManager
 
 Router = APIRouter()
 
@@ -85,7 +85,7 @@ async def HandleAskAI(UserId: str, Params: dict):
 
     Prompt = BuildPrompt(Query, QuestionManager.GetExplanationById(Qid))
 
-    async for Tok in AIInteraction.StreamReply(Prompt):
+    async for Tok in AIInteractionManager.StreamReply(Prompt):
         await SessionManager.SendJson(UserId, {"Event": "StreamReply", "Data": Tok})
 
 # ---------- 辅助 ----------

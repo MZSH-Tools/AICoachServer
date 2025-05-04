@@ -115,12 +115,12 @@ class _QuestionManager:
                 answer in Question.CorrectAnswers for answer in UserAnswerArray):
             AnswerStr = "回答正确！"
             if Params.get("ParseOnAnswerRight", False):
-                AnswerStr += f"{Question.Parse}"
+                AnswerStr += f"题目解析: {Question.Parse}"
         else:
             AnswerStr = "回答错误！"
             AnswerStr += f"正确答案是 {','.join(Question.CorrectAnswers)}"
             if Params.get("ParseOnAnswerError", True):
-                AnswerStr += f"{Question.Parse}"
+                AnswerStr += f"题目解析: {Question.Parse}"
 
         Result["ShowStr"] = AnswerStr
 

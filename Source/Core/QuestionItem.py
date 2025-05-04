@@ -13,6 +13,7 @@ class QuestionItem:
         self.Type = RawData.get("题目类型", "单选")
         self.Stem = RawData.get("题目", {}).get("文本", "")
         self.Image = self.ResolveImagePath(RawData.get("题目", {}).get("图片"), RootPath)
+        self.Parse = RawData.get("题目解析", "")
         self.Options = RawData.get("选项", [])
         self.OptionLabels = OptionLabels[:len(self.Options)]
 

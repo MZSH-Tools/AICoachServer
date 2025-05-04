@@ -30,21 +30,24 @@ class _QuestionManager:
         except Exception as e:
             print(f"[题库解析失败] {e}")
 
-    def NextQuestion(self, UserId: str, Params: dict, Result: dict) -> list[str] | None:
+    def NextQuestion(self, UserId: str, Params: dict, Result: dict):
         Exclude = Params.get("Exclude", [])
         RandomOption = Params.get("RandomOption", True)
         OptionLabels = Params.get("OptionLabels", ["A", "B", "C", "D"])
 
-        TextList = []
-
         Candidates = [Q for Qid, Q in self.QuestionBank.items() if Qid not in Exclude]
-        if Candidates:
-            Raw = random.choice(Candidates)
-            Question = QuestionItem(Raw, self.ProjectRoot, RandomOption, OptionLabels)
-            self.QuestionDict[UserId] = Question
-            TextList = self.FormatQuestionAsText(Question)
-
-        Result["Question"] = TextList
+        if not Candidates:
+            Result["Success"] = False
+            Result["Question"] = []
+            Result["ErrorStr"] = "没有筛选出来的题目"
+            return
+            
+        Raw = random.choice(Candidates)
+        Question = QuestionItem(Raw, self.ProjectRoot, RandomOption, OptionLabels)
+        self.QuestionDict[UserId] = Question
+        
+        Result["Success"] = True
+        Result["Question"] = self.FormatQuestionAsText(Question)
 
     def FormatQuestionAsText(self, Question: QuestionItem) -> list[str]:
         Lines = []
@@ -59,14 +62,42 @@ class _QuestionManager:
                 Lines.append(f"[IMAGE] {Option['真实图片路径']}")
         return Lines
 
-    def EvaluateAnswer(self, UserId: str, Answer: str) -> tuple[bool, str]:
+    def CheckAnswer(self, UserId: str, Params: dict, Result: dict):
+        Result["Success"] = False
         Question = self.QuestionDict.get(UserId)
         if not Question:
-            return False, "未找到绑定题目"
-        return self.CheckAnswer(Question, Answer)
+            Result["ShowStr"] = "未找到绑定题目"
+            return
+        UserAnswer = Params.get("Answer", "").strip()
 
-    def CheckAnswer(self, UserId: str, Params: dict, Result: dict) -> tuple[bool, str]:
-        CurQuestion = self.QuestionDict.get(UserId)
+        if UserAnswer == "":
+            Result["ShowStr"] = "不能输入为空，请输入正确的答案"
+            return
+
+        UserAnswerArray = []
+        for char in UserAnswer:
+            if char not in Question.OptionLabels:
+                Result["ShowStr"] = f"无效的选项: {char}"
+                return
+            UserAnswerArray.append(char)
+            
+        if len(UserAnswerArray) > 1 and Question.Type != "多选":
+            Result["ShowStr"] = f"非多选题不能输入多个选项，请重新输入"
+            return
+            
+        Result["Success"] = True
+        AnswerStr = ""
+        if len(UserAnswerArray) == len(Question.CorrectAnswers):
+            AnswerStr = "回答正确！"
+            if Params.get("ParseOnAnswerRight", False):
+                AnswerStr += f"{Question.Parse}"
+        else:
+            AnswerStr = "回答错误！"
+            AnswerStr += f"正确答案是 {Question.CorrectAnswers}"
+            if Params.get("ParseOnAnswerError", True):
+                AnswerStr += f"{Question.Parse}"
+
+        Result["ShowStr"] = AnswerStr
 
     def ClearUserQuestion(self, UserId: str):
         self.QuestionDict.pop(UserId, None)

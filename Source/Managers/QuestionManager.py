@@ -95,7 +95,7 @@ class _QuestionManager:
         if not Question:
             Result["ShowStr"] = "未找到绑定题目"
             return
-        UserAnswer = Params.get("Answer", "").strip().upper()
+        UserAnswer = Params.get("UserInput", "").strip().upper()
 
         if UserAnswer == "":
             Result["ShowStr"] = "不能输入为空，请输入正确的答案"

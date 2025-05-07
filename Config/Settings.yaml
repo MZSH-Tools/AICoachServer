@@ -2,18 +2,3 @@
 模型名称: deepseek-r1:14b
 模型地址池:
   - "http://localhost:11434/api/generate"
-
-
-排除思考: true
-题库路径: Data/QuestionBank.json
-打乱选项: true
-选项编号: ["A", "B", "C", "D"]
-正确解析: true
-错误解析: true
-题库为空时重新加载: true
-每次抽题打乱顺序: true
-在题库中移除已抽题目: true
-
-欢迎语:
-  - "[TEXT] 欢迎使用 AI 教练系统！"
-  - "[TEXT] 系统已准备就绪，即将进入答题模式。"

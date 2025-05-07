@@ -32,7 +32,7 @@ class QuestionItem:
     def ResolveImagePath(RelativePath: Optional[str], RootPath: str) -> str:
         if not RelativePath:
             return ""
-        return os.path.join(RootPath, "Assets/Images", RelativePath)
+        return os.path.join("Assets/Images", RelativePath)
 
 class _QuestionManager:
     def __init__(self):

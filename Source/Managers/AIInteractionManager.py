@@ -58,7 +58,7 @@ class _AIInteractionManager:
             ModelPoolManager.ReleaseNode(Url)
 
 
-    def AskAI(self, UserId: str, Params: dict, Result: dict)-> AsyncGenerator[str, None]:
+    async def AskAI(self, UserId: str, Params: dict, Result: dict)-> AsyncGenerator[str, None]:
         ErrorShow = "抱歉没有找到相关问题解析，已发送后台管理人员接收。"
         Prompt = "你是一个严肃认真的驾校教练，正在帮助学生练习科目一考试，我会为你提供问题解析库，请根据用户输入找到相关问题的解析并回答给用户。"
         #Prompt += "如果用户想要开始做下一道题，请你回复四个字符'下一道题'。"
@@ -71,23 +71,27 @@ class _AIInteractionManager:
             ErrorStr = "当前没有可用的题目信息，请先生成题目。"
             Result["ErrorStr"] = ErrorStr
             yield f"[ERROR] {ErrorStr}"
-            return None
-        ExplanationMap = Question.ExplanationMap
-        ExplanationMap += QuestionManager.ExplanationMap
+            return
+        ExplanationMap = dict(Question.ExplanationMap)
+        ExplanationMap.update(QuestionManager.ExplanationMap)
         Prompt += f"解析库是{ExplanationMap}。"
 
-        async def _Generator():
-            Result["Text"] = ""
-            Result["Chunk"] = ""
-            Result["Done"] = False
-            async for Chunk in self.StreamReply(Prompt):
-                Result["Chunk"] = Chunk
-                Result["Text"] += Chunk
+        Result["Success"] = True
+        Result["Text"] = ""
+        Result["Chunk"] = ""
+        Result["Done"] = False
+        Result["IsThinking"] = False
+        async for Chunk in self.StreamReply(Prompt):
+            if Chunk == "<think>":
+                Result["IsThinking"] = True
                 yield Chunk
-            Result["Done"] = True
-            #if Result["Text"] == ErrorShow:
-                # 这里是发送给后台管理人员的逻辑留空
-        return _Generator()
+            if Chunk == "</think>":
+                Result["IsThinking"] = False
+                yield Chunk
+            Result["Chunk"] = Chunk
+            Result["Text"] += Chunk
+            yield Chunk
+        Result["Done"] = True
 
 # ✅ 单例实例暴露
 AIInteractionManager = _AIInteractionManager()

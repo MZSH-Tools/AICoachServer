@@ -41,4 +41,5 @@ App.include_router(QueryAIWebSocket.Router)
 # ==========================================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("Main:App", host="0.0.0.0", port=8000, reload=False)
+    from Main import App
+    uvicorn.run(App, host="0.0.0.0", port=8000, reload=False)
